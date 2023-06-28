@@ -14,15 +14,15 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use App\Services\CheckoutFactory;
 
 class CheckoutController extends Controller
 {
+
     public function checkout(Request $request)
     {
         /** @var \App\Models\User $user */
         $user = $request->user();
-
-        \Stripe\Stripe::setApiKey(getenv('STRIPE_SECRET_KEY'));
 
         [$products, $cartItems] = Cart::getProductsAndCartItems();
 
@@ -49,16 +49,9 @@ class CheckoutController extends Controller
                 'unit_price' => $product->price
             ];
         }
-//        dd(route('checkout.failure', [], true));
 
-//        dd(route('checkout.success', [], true) . '?session_id={CHECKOUT_SESSION_ID}');
-
-        $session = \Stripe\Checkout\Session::create([
-            'line_items' => $lineItems,
-            'mode' => 'payment',
-            'success_url' => route('checkout.success', [], true) . '?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url' => route('checkout.failure', [], true),
-        ]);
+        $checkoutMethod = CheckoutFactory::getPaymentMethod($request->input('checkouMethod'));
+        $checkoutMethod->createCheckoutSession($lineItems);
 
         // Create Order
         $orderData = [
